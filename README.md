@@ -1,6 +1,6 @@
 ============
 ShiftyAlpaca
-===========
+============
 A Java/Spring application aimed at performing safety/speed checks on SQL database queries
 | Univ. of Utah, School of Computing
 | Master's of Software Development Capstone
