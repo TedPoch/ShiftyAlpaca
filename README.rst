@@ -16,10 +16,10 @@ This tool will serve to mitigate toil on the DBA team by transforming a manual, 
 A.	MVP
 
 i.	The scope of the project is highly open-ended and scalable. Tentative plan includes the following features:
-1.	Determine if SQL queries are making effective use of the RDBMS schema design, specifically the existing indexes
 
-2.	Analyzer will account for table sizes and other characteristics when analyzing queries
-3.	Blocked queries should be easily detectable
+  1.	Determine if SQL queries are making effective use of the RDBMS schema design, specifically the existing indexes
+  2.	Analyzer will account for table sizes and other characteristics when analyzing queries
+  3.	Blocked queries should be easily detectable
 
 _____________
 STRETCH GOALS
