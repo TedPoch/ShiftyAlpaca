@@ -1,8 +1,13 @@
-21 August 2018
-2018 MSD CAPSTONE – TED POCHMARA
-DATABASE QUERY PERFORMANCE ANALYZER
-IN COLLABORATION WITH ADOBE SYSTEMS INC
-1.	PROBLEM DOMAIN & MINIMUM VIABLE PRODUCT
+============
+ShiftyAlpaca
+============
+A Java/Spring application aimed at performing safety/speed checks on SQL database queries
+_________________________________________________________________________________________
+| Univ. of Utah, School of Computing
+| Master's of Software Development CAPSTONE
+| Ted Pochmara
+PROBLEM DOMAIN & MINIMUM VIABLE PRODUCT
+_______________________________________
 An Adobe Systems Inc technical operations team seeks an application that will enable the company’s software developers to perform an initial analysis of new SQL queries before use in production. The tool will determine whether queries are safe and efficient, recommending collaboration with a database admin (DBA) as necessary. Currently, a team of DBAs performs these analyses manually on behalf of 150 software developers from various teams. While the reviews are a necessary precaution, it’s no surprise that they impact software development velocity and eat up valuable DBA resources.
 SOLUTION VALUE: This tool will serve to mitigate toil on the DBA team by transforming a manual, repetitive, automatable task into a self-service process for use by software developers. It will free up DBAs to focus on more valuable pursuits such as database monitoring, optimization, and modernization.
 A.	MVP
