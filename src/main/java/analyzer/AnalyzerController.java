@@ -7,16 +7,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class AnalyzerController {
 
-  @GetMapping("/analyzer")
-  public String greeting(@RequestParam(name="name", required=false, defaultValue="World") String name, Model model) {
-    model.addAttribute("name", name);
-    return "greeting";
-  }
-
-  @PostMapping(value="/analyzer", consumes="application/json", produces="application/json")
-  public VerificationResponse verify (Verification incoming, VerificationResponse resp) {
-
-    resp.setChallenge(incoming.getChallenge());
-    return resp;
-  }
+    @PostMapping(value="/analyzer", produces="application/json", consumes="application/json")
+    public VerificationResponse doSomeThing(@RequestBody Verification input){
+        System.out.println(input.getChallenge());
+        return new VerificationResponse(input.getChallenge());
+    }
 }

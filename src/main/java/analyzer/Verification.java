@@ -1,17 +1,24 @@
 package analyzer;
 
 public class Verification {
-
     private String token;
     private String challenge;
     private String type;
 
-    public void setToken(String token) {
-        this.token = token;
+    public Verification() {
+
     }
 
-    public void setType(String type) {
-        this.type = type;
+//	public Verification(String challenge) {
+//		this.challenge = challenge;
+//	}
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public String getChallenge() {
@@ -21,4 +28,14 @@ public class Verification {
     public void setChallenge(String challenge) {
         this.challenge = challenge;
     }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
 }
+
