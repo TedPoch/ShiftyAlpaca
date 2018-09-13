@@ -1,7 +1,7 @@
-package analyzer;
+package com.tedpoch.ShiftyAlpaca.controller;
 
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import com.tedpoch.ShiftyAlpaca.model.Verification;
+import com.tedpoch.ShiftyAlpaca.model.VerificationResponse;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

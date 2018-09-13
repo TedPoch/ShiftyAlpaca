@@ -1,4 +1,4 @@
-package analyzer;
+package com.tedpoch.ShiftyAlpaca.model;
 
 public class VerificationResponse {
 
