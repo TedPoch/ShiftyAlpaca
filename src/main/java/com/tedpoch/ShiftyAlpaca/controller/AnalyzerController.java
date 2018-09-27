@@ -2,9 +2,7 @@ package com.tedpoch.ShiftyAlpaca.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.tedpoch.ShiftyAlpaca.model.*;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -18,7 +16,7 @@ public class AnalyzerController {
 
      */
     @PostMapping(value="/analyzer", produces="application/json", consumes="application/json")
-    public EventResponse returnResult(@RequestBody JsonNode node) {
+    public Response returnResult(@RequestBody JsonNode node) {
 
         switch (node.get("type").asText()) {
 

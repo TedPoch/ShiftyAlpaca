@@ -6,6 +6,6 @@ package com.tedpoch.ShiftyAlpaca.model;
     QueryResponse classes and return either of them in
     the controller method's switch statement.
  */
-public interface EventResponse {
+public interface Response {
 
 }

@@ -1,23 +1,16 @@
 package com.tedpoch.ShiftyAlpaca.model;
 
+import lombok.Data;
+
 /* This class will serve as the basis for the ultimate response
     that the application will form on behalf of the user when they
     submit a DB query for analysis.
-
  */
-public class QueryResponse implements EventResponse {
+@Data
+public class QueryResponse implements Response {
+    private String response;
 
-    private String text;
-
-    public QueryResponse(String text) {
-        this.text = text;
-    }
-
-    public String getText() {
-        return text;
-    }
-
-    public void setText(String text) {
-        this.text = text;
+    public QueryResponse(String response) {
+        this.response = response;
     }
 }
