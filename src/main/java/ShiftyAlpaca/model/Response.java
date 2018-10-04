@@ -1,4 +1,4 @@
-package tedpoch.ShiftyAlpaca.model;
+package ShiftyAlpaca.model;
 
 import org.hibernate.annotations.GenericGenerator;
 
@@ -12,8 +12,5 @@ import javax.persistence.Id;
     the controller method's switch statement.
  */
 public class Response {
-  @Id
-  @GeneratedValue(generator = "system-uuid") //PK should be random as a security measure
-  @GenericGenerator(name = "system-uuid", strategy = "uuid2")
-  String app_id;
+  private String id;
 }

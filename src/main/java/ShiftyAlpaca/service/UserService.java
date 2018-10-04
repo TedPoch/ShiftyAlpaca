@@ -1,17 +1,15 @@
-package tedpoch.ShiftyAlpaca.service;
+package ShiftyAlpaca.service;
 
-import tedpoch.ShiftyAlpaca.model.User;
-import tedpoch.ShiftyAlpaca.repository.AnalyzerUsers;
+import ShiftyAlpaca.model.User;
+import ShiftyAlpaca.repository.UserRepo;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class UserService {
 
-  private final AnalyzerUsers users;
+  private final UserRepo users;
 
-  public UserService(AnalyzerUsers users) {
+  public UserService(UserRepo users) {
     this.users = users;
   }
 

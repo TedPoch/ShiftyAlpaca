@@ -1,6 +1,6 @@
-package tedpoch.ShiftyAlpaca.controller;
+package ShiftyAlpaca.controller;
 
-import tedpoch.ShiftyAlpaca.model.Greeting;
+import ShiftyAlpaca.model.Greeting;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;

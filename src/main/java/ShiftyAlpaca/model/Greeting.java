@@ -1,4 +1,4 @@
-package tedpoch.ShiftyAlpaca.model;
+package ShiftyAlpaca.model;
 
 public class Greeting {
 

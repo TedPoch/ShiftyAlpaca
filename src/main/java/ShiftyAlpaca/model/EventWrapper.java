@@ -1,11 +1,9 @@
-package tedpoch.ShiftyAlpaca.model;
+package ShiftyAlpaca.model;
 
 import lombok.Data;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import javax.persistence.*;
+import java.io.Serializable;
 import java.util.List;
 
 /* This EventWrapper class is a representation of the basic JSON object
@@ -16,18 +14,29 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "event_wrappers")
-public class EventWrapper {
+public class EventWrapper implements Serializable {
+  @Id     //While EventWrapper uses a Slack Event provided unique string as the PK, here we gen our own
+  @GeneratedValue(strategy=GenerationType.IDENTITY)
+  private Long id;
+
   private String token;
   private String team_id;
   private String api_app_id;
+
+  @OneToOne (fetch = FetchType.LAZY,
+             cascade = CascadeType.ALL,
+             mappedBy = "eventWrapper")
   private Event event;
+
   private String type;
 
   @Transient
   private List<String> authed_teams;
 
-  @Id     //event_id arrives with wrapper and is globally unique across workspaces
+  //event_id arrives with wrapper and is globally unique across workspaces
   private String event_id;
 
   private String event_time;
+
+  public EventWrapper() {}
 }
