@@ -2,7 +2,7 @@ package ShiftyAlpaca.model;
 
 import lombok.Data;
 
-/* This class will serve as the basis for the ultimate response
+/** This class will serve as the basis for the response
     that the application will form on behalf of the user when they
     submit a DB query for analysis.
  */

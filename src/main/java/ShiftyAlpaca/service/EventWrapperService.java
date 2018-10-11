@@ -4,6 +4,8 @@ import ShiftyAlpaca.model.EventWrapper;
 import ShiftyAlpaca.model.QueryResponse;
 import ShiftyAlpaca.model.VerificationResponse;
 import ShiftyAlpaca.repository.EventWrapperRepo;
+import ShiftyAlpaca.router.QueryDatabase;
+import ShiftyAlpaca.router.QueryDatabaseContextHolder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
+/** The EventWrapperService (Singleton by virtue of @Service) is
+ * stood up by the AnalyzerController. This is where the business
+ * logic resides, decoupled from the respective repository. The
+ * repo will database the query request, translate/run the EXPLAIN
+ * query, and store the result for retrieval by this service class.
+ *
+ */
 @Service  //This makes the service a singleton by default
 public class EventWrapperService {
 
@@ -29,8 +38,18 @@ public class EventWrapperService {
     } catch (IOException exception) {
       exception.printStackTrace();
     }
-
+    //TODO: pickup this mess and finish on Friday
+    QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
     eventWrappers.save(eWrapper);
+
+    //translate event text into EXPLAIN
+    String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
+    //connect to DB
+    QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
+    //run explain
+
+    //store result in above DB save record
+    //return recommendation string to user
 
     QueryResponse resp = new QueryResponse();
     resp.setResponse(eWrapper.getEvent().getText());
