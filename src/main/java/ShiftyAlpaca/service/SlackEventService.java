@@ -9,6 +9,7 @@ import ShiftyAlpaca.repository.EventWrapperRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -27,6 +28,13 @@ import java.io.IOException;
 @Service  //This makes the service a singleton by default
 public class SlackEventService {
 
+  private String URL_BASE = "https://slack.com/api";
+  @Value( "${client.id}" )
+  private String CLIENT_ID;
+  @Value( "${client.secret}" )
+  private String CLIENT_SECRET;
+  @Value("${bot.token}")
+  private String BOT_TOKEN;
   @Autowired
   private EventWrapperRepo eventWrappers;
 
@@ -34,8 +42,7 @@ public class SlackEventService {
    * @param event
    * @return
    */
-  @Async
-  public QueryResponse respond(JsonNode event) {
+  public void respond(JsonNode event) {
     EventWrapper eWrapper = new EventWrapper();
     ObjectMapper mapper = new ObjectMapper();
     try {
@@ -47,12 +54,12 @@ public class SlackEventService {
     } catch (IOException exception) {
       exception.printStackTrace();
     }
-    //TODO: pickup this mess and finish on Friday
+    //TODO: pickup this mess and finish this weekend
     //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
     eventWrappers.save(eWrapper);
 
     //translate event text into EXPLAIN
-    String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
+    //String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
     //connect to DB
     //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
     //run explain
@@ -60,9 +67,11 @@ public class SlackEventService {
     //store result in above DB save record
     //return recommendation string to user
 
-    QueryResponse resp = new QueryResponse();
-    resp.setResponse(eWrapper.getEvent().getText());
-    return resp;
+//    QueryResponse resp = new QueryResponse();
+//    resp.setResponse(eWrapper.getEvent().getText());
+//    return resp;
+    postToUser(eWrapper.getEvent().getChannel(), eWrapper.getEvent().getText());
+
   }
 
   /** Handles the Slack API's verification event when ititially establishing the url
@@ -83,10 +92,13 @@ public class SlackEventService {
    */
   public void postToUser(String channel, String text){
     RestTemplate resp = new RestTemplate();
-    MultiValueMap map = new LinkedMultiValueMap();
+    MultiValueMap<String, Object> map = new LinkedMultiValueMap();
     map.add("channel", channel);
     map.add("text", text);
-    map.add("token", null); //TODO: work on saving the token somewhere secure
+    map.add("token", BOT_TOKEN); //TODO: work on saving the token somewhere secure
+
+    //RestTemplate does POST on URL with map object of response data
+    resp.postForObject(URL_BASE + "/chat.postMessage", map, String.class);
   }
 
   public synchronized boolean addEvent(EventWrapper event) {
