@@ -11,12 +11,13 @@ import java.io.Serializable;
  */
 @Data
 @Entity
-@Table (name = "events")
+@Table(name = "events")
 public class Event implements Serializable {
   @Id     //While EventWrapper uses a Slack Event provided unique string as the PK, here we gen our own
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long event_id;
 
+  private String client_msg_id;
   private String type;
   private String channel;
   private String user;

@@ -1,6 +1,6 @@
 package ShiftyAlpaca.controller;
 
-import ShiftyAlpaca.service.EventWrapperService;
+import ShiftyAlpaca.service.SlackEventService;
 import com.fasterxml.jackson.databind.JsonNode;
 import ShiftyAlpaca.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class AnalyzerController {
     @Autowired
-    private EventWrapperService eventWrapperService;
+    private SlackEventService slackEventService;
 
     /**  The controller accepts JSON objects from the Slack API. These are wrappers
         around a specific event type. The switch case below attempts to determine
@@ -23,9 +23,9 @@ public class AnalyzerController {
     public Response returnResult(@RequestBody JsonNode event) {
       switch (event.get("type").asText()) {
         case "event_callback":
-          return eventWrapperService.eventResponse(event);
+          return slackEventService.respond(event);
         case "url_verification":
-          return eventWrapperService.verificationResponse(event);
+          return slackEventService.verificationResponse(event);
         default:
           return null;
       }

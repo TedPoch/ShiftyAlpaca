@@ -39,6 +39,7 @@ spring-test/test-output/
 argfile*
 pom.xml
 activemq-data/
+application.properties
 
 classes/
 /build

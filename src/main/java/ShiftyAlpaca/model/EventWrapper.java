@@ -31,7 +31,7 @@ public class EventWrapper implements Serializable {
   private String type;
 
   @Transient
-  private List<String> authed_teams;
+  private List<String> authed_users;
 
   //event_id arrives with wrapper and is globally unique across workspaces
   private String event_id;
