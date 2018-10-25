@@ -1,16 +1,15 @@
 package ShiftyAlpaca.service;
 
 import ShiftyAlpaca.model.EventWrapper;
-import ShiftyAlpaca.model.QueryResponse;
 import ShiftyAlpaca.model.VerificationResponse;
 import ShiftyAlpaca.repository.EventWrapperRepo;
-//import ShiftyAlpaca.router.QueryDatabase;
-//import ShiftyAlpaca.router.QueryDatabaseContextHolder;
+import ShiftyAlpaca.router.QueryDatabase;
+import ShiftyAlpaca.router.QueryDatabaseContextHolder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -37,41 +36,41 @@ public class SlackEventService {
   private String BOT_TOKEN;
   @Autowired
   private EventWrapperRepo eventWrappers;
+  @Autowired
+  private JdbcTemplate explain;
 
   /**
    * @param event
    * @return
    */
   public void respond(JsonNode event) {
-    EventWrapper eWrapper = new EventWrapper();
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      //Creating the eventWrapper with the ObjMapper also creates the nested
-      //  'Event' object
-      //  BUT, we need to set the foreign key of the Event to the parent wrapper
-      eWrapper = mapper.readValue(event.toString(), EventWrapper.class);
-      eWrapper.getEvent().setEventWrapper(eWrapper);
-    } catch (IOException exception) {
-      exception.printStackTrace();
+    if (!messageFromBot(event)) {
+      EventWrapper eWrapper = new EventWrapper();
+      ObjectMapper mapper = new ObjectMapper();
+      try {
+        //Creating the eventWrapper with the ObjMapper also creates the nested
+        //  'Event' object
+        //  BUT, we need to set the foreign key of the Event to the parent wrapper
+        eWrapper = mapper.readValue(event.toString(), EventWrapper.class);
+        eWrapper.getEvent().setEventWrapper(eWrapper);
+      } catch (IOException exception) {
+        exception.printStackTrace();
+      }
+      //TODO: pickup this mess up
+      //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
+      eventWrappers.save(eWrapper);
+
+      //translate event text into EXPLAIN
+      String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
+      //connect to DB
+      QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
+      //run explain
+
+      //store result in above DB save record
+      //return recommendation string to user
+
+      postToUser(eWrapper.getEvent().getChannel(), eWrapper.getEvent().getText());
     }
-    //TODO: pickup this mess and finish this weekend
-    //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
-    eventWrappers.save(eWrapper);
-
-    //translate event text into EXPLAIN
-    //String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
-    //connect to DB
-    //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
-    //run explain
-
-    //store result in above DB save record
-    //return recommendation string to user
-
-//    QueryResponse resp = new QueryResponse();
-//    resp.setResponse(eWrapper.getEvent().getText());
-//    return resp;
-    postToUser(eWrapper.getEvent().getChannel(), eWrapper.getEvent().getText());
-
   }
 
   /** Handles the Slack API's verification event when ititially establishing the url
@@ -82,6 +81,18 @@ public class SlackEventService {
    */
   public VerificationResponse verificationResponse(JsonNode challenge) {
     return new VerificationResponse(challenge.get("challenge").asText());
+  }
+
+  /** When the applications provides a response for the Slackbot to post in chat, that chatpost
+   * will also be picked up by the Slack Events API and will itself be POSTed back to the application.
+   *
+   * This potential loop is defeated with this method, which simply checks for the existence of a bot_id
+   * in the Event post. The field does not exist in user message events.
+   *
+   * @return - true if message event is from a Slackbot.
+   */
+  private boolean messageFromBot(JsonNode event) {
+    return (event.get("event").get("bot_id") != null);
   }
 
   /** This method will be called from the Async respond() above in order to post a message
