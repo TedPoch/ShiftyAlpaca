@@ -1,20 +1,23 @@
 package ShiftyAlpaca.service;
 
+import ShiftyAlpaca.model.ExplainResult;
 import ShiftyAlpaca.model.EventWrapper;
 import ShiftyAlpaca.model.VerificationResponse;
+import ShiftyAlpaca.repository.ExplainResultRepo;
 import ShiftyAlpaca.repository.EventWrapperRepo;
-import ShiftyAlpaca.router.QueryDatabase;
-import ShiftyAlpaca.router.QueryDatabaseContextHolder;
+import ShiftyAlpaca.repository.ResultRowMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 
 /** The EventWrapperService (Singleton by virtue of @Service) is
@@ -37,7 +40,18 @@ public class SlackEventService {
   @Autowired
   private EventWrapperRepo eventWrappers;
   @Autowired
-  private JdbcTemplate explain;
+  private ExplainResultRepo resultRepo;
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+
+  @Value("${spring.datasource.alpha.username}")
+  private String testDBusername;
+  @Value("${spring.datasource.alpha.password}")
+  private String testDBpassword;
+  @Value("${spring.datasource.beta.url}")
+  private String testDBURL;
+  @Value("${spring.datasource.beta.driver-class-name}")
+  private String testDBdriver;
 
   /**
    * @param event
@@ -61,12 +75,22 @@ public class SlackEventService {
       eventWrappers.save(eWrapper);
 
       //translate event text into EXPLAIN
-      String explainSQL = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
+      //String sql = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
       //connect to DB
-      QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
-      //run explain
-
+      //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
+      DataSource ds = DataSourceBuilder.create()
+              .username(testDBusername)
+              .password(testDBpassword)
+              .url(testDBURL)
+              .driverClassName(testDBdriver)
+              .build();
+      //run jdbcTemplate statement
+      //JdbcTemplate explainThis = new JdbcTemplate(ds);
+      //ExplainResult result = analyzeQuery(explainThis, sql);
       //store result in above DB save record
+      //resultRepo.save(result);
+      //run decision tree logic
+
       //return recommendation string to user
 
       postToUser(eWrapper.getEvent().getChannel(), eWrapper.getEvent().getText());
@@ -110,6 +134,15 @@ public class SlackEventService {
 
     //RestTemplate does POST on URL with map object of response data
     resp.postForObject(URL_BASE + "/chat.postMessage", map, String.class);
+  }
+
+  /** Create a MariaDB analyze statement object after running the
+   * query on the current DB in context.
+   * @return
+   */
+  public ExplainResult analyzeQuery(JdbcTemplate ds, String sql) {
+    return ds.queryForObject(sql,
+            new ResultRowMapper());
   }
 
   public synchronized boolean addEvent(EventWrapper event) {

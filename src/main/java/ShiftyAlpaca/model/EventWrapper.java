@@ -39,4 +39,5 @@ public class EventWrapper implements Serializable {
   private String event_time;
 
   public EventWrapper() {}
+
 }

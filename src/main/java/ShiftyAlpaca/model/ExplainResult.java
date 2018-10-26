@@ -3,7 +3,7 @@ package ShiftyAlpaca.model;
 import lombok.Data;
 
 import javax.persistence.*;
-import java.util.List;
+import java.io.Serializable;
 
 /** This model class will help process the result from an ANALYZE
  * statement run against the respective database.
@@ -19,7 +19,7 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "explain_results")
-public class AnalyzeResult {
+public class ExplainResult implements Serializable {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,31 +29,37 @@ public class AnalyzeResult {
   private int id;
   //What kind of SELECT the table comes from.
   private String select_type;
-  //Alias name of table
-  private String table;
+  //Alias name of table (table)
+  private String queried_table;
   //How rows are found from the table (join type)
   private String type;
   //Existing keys in table that could be used to find rows in the table
-  private List<String> possible_keys;
-  //Name of the key that was used for this query
-  private String key;
+  private String possible_keys;
+  //Name of the key that was used for this query (key)
+  private String queried_key;
   //How many bytes of the key that was used (shows if we are using
   // only parts of the multi-column key).
   private int key_len;
   //The reference that is used to as the key value.
   private String ref;
+  //Extra info about this join
+  private String Extra;
+
+  public ExplainResult(){}
+
+/**Uncomment this block if we add functionality for ANALYZE statements
+ *
   //An estimate of how many rows found in the table for each key lookup
   private int rows;
   //An observation-based counterpart of the rows column. It shows how
   // many rows were actually read from the table.
   private int r_rows;
-  //Extra info about this join
-  private String Extra;
   //This is a percentage estimate of the table rows that will be filtered
   // by the condition.
   private float filtered;
   //An observation-based counterpart of the filtered column. It shows which
   // fraction of rows was left after applying the WHERE condition.
   private float r_filtered;
+*/
 
 }
