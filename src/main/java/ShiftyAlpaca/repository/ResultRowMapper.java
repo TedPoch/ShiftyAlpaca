@@ -9,7 +9,6 @@ import java.sql.SQLException;
 public class ResultRowMapper implements RowMapper<ExplainResult> {
   @Override
   public ExplainResult mapRow(ResultSet rs, int i) throws SQLException {
-
     ExplainResult result = new ExplainResult();
     result.setId(rs.getInt("id"));
     result.setSelect_type(rs.getString("select_type"));

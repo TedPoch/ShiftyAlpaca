@@ -8,6 +8,7 @@ import ShiftyAlpaca.repository.EventWrapperRepo;
 import ShiftyAlpaca.repository.ResultRowMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.javatuples.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -19,6 +20,11 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** The EventWrapperService (Singleton by virtue of @Service) is
  * stood up by the AnalyzerController. This is where the business
@@ -38,12 +44,14 @@ public class SlackEventService {
   @Value("${bot.token}")
   private String BOT_TOKEN;
   @Autowired
-  private EventWrapperRepo eventWrappers;
+  private EventWrapperRepo eventWrapperRepo;
   @Autowired
-  private ExplainResultRepo resultRepo;
+  private ExplainResultRepo explainResultRepo;
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  //Intermediate members. Remove after local DB testing is done and
+  //  messaging system is set up
   @Value("${spring.datasource.alpha.username}")
   private String testDBusername;
   @Value("${spring.datasource.alpha.password}")
@@ -53,9 +61,15 @@ public class SlackEventService {
   @Value("${spring.datasource.beta.driver-class-name}")
   private String testDBdriver;
 
-  /**
-   * @param event
-   * @return
+  /**TODO: Temporary: Single method that will store a user query in a
+   * database for record-keeping. Method will then run EXPLAIN on
+   * selected other DB, store that result, then "respond" to user
+   * via the AnalyzeController with a recommendation to speak with
+   * a DBA.
+   *
+   * @param event - Text string from user via Slack (Json)
+   *
+   * @return - Text string with recommended course of action.
    */
   public void respond(JsonNode event) {
     if (!messageFromBot(event)) {
@@ -70,12 +84,14 @@ public class SlackEventService {
       } catch (IOException exception) {
         exception.printStackTrace();
       }
-      //TODO: pickup this mess up
+      //TODO: pickup this mess up and refactor.
       //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
-      eventWrappers.save(eWrapper);
+      eventWrapperRepo.save(eWrapper);
 
       //translate event text into EXPLAIN
-      //String sql = "EXPLAIN " + eWrapper.getEvent().getText() + ";";
+      Pair<String, List<Object>> parsedQueryTuple =
+              parseSqlForPreparedStatement(eWrapper.getEvent().getText());
+
       //connect to DB
       //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
       DataSource ds = DataSourceBuilder.create()
@@ -84,11 +100,16 @@ public class SlackEventService {
               .url(testDBURL)
               .driverClassName(testDBdriver)
               .build();
+
       //run jdbcTemplate statement
-      //JdbcTemplate explainThis = new JdbcTemplate(ds);
-      //ExplainResult result = analyzeQuery(explainThis, sql);
-      //store result in above DB save record
-      //resultRepo.save(result);
+      JdbcTemplate explainThis = new JdbcTemplate(ds);
+      List<ExplainResult> result = analyzeQuery(explainThis, parsedQueryTuple);
+
+      //store result app's record-keeping database
+      //  established by ExplainResultRepo
+      for (ExplainResult r : result) {
+        explainResultRepo.save(r);
+      }
       //run decision tree logic
 
       //return recommendation string to user
@@ -97,7 +118,7 @@ public class SlackEventService {
     }
   }
 
-  /** Handles the Slack API's verification event when ititially establishing the url
+  /** Handles the Slack API's verification event when initially establishing the url
    * of this application as the true home of the bot's brains.
    *
    * @param challenge comes in at the controller from Slack. No need to store, just return.
@@ -136,13 +157,48 @@ public class SlackEventService {
     resp.postForObject(URL_BASE + "/chat.postMessage", map, String.class);
   }
 
-  /** Create a MariaDB analyze statement object after running the
-   * query on the current DB in context.
+  /** Create a MariaDB ExplainResult statement object after running the
+   * query on the chosen DB in context.
    * @return
    */
-  public ExplainResult analyzeQuery(JdbcTemplate ds, String sql) {
-    return ds.queryForObject(sql,
-            new ResultRowMapper());
+  public List<ExplainResult> analyzeQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
+    try{
+      String parsedSQL = sql.getValue0();
+      Object[] args = sql.getValue1().toArray();
+      List<ExplainResult> ret = ds.query("EXPLAIN " + parsedSQL,
+              args, new ResultRowMapper());
+      return ret;
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+    ExplainResult ret = new ExplainResult();
+    List<ExplainResult> retList = new ArrayList<>();
+    retList.add(ret);
+    return retList;
+  }
+
+  /** Parse a user submitted SQL statement for parameters, e.g. the argument for a
+   * WHERE clause. Pull out these arguments, place them in a List<Object> and replace
+   * each argument in the original string with a question mark (JDBC PreparedStatement
+   * syntax). Return this in a tuple so that a JDBC PreparedStatement can be run against
+   * the requested DB.
+   *
+   * @param   -SQL string statement entered by app user
+   * @return  -Tuple of SQL statement with arguments extracted for use in JDBC PreparedStatement
+   */
+  private Pair<String, List<Object>> parseSqlForPreparedStatement(String sql){
+    List<Object> retList = new ArrayList<>();
+
+    //Find any instances of single/double quoted data in the SQL statement
+    Pattern pattern = Pattern.compile("‘(.*?)’", Pattern.MULTILINE);
+    Matcher matcher = pattern.matcher(sql);
+    //Find each instance of above pattern and add to list of args to return to user
+    while (matcher.find()) {
+      retList.add(matcher.group(1));
+    }
+    //Replace found patterns with '?' and return alongside extracted args
+    matcher.reset();
+    return new Pair<>(matcher.replaceAll("?"), retList);
   }
 
   public synchronized boolean addEvent(EventWrapper event) {
@@ -154,5 +210,4 @@ public class SlackEventService {
     //TODO: stub for event service method
     return null;
   }
-
 }

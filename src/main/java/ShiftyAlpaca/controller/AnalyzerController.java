@@ -29,6 +29,7 @@ public class AnalyzerController {
       switch (event.get("type").asText()) {
 
         case "event_callback":
+          //TODO: make this ASYNC so Slack gets 'OK' in timely manner
           slackEventService.respond(event);
           //return slackEventService.respond(event);
           return "Ok";
