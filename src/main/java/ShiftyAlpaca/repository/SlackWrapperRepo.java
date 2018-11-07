@@ -1,8 +1,8 @@
 package ShiftyAlpaca.repository;
 
+import ShiftyAlpaca.model.SlackWrapper;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
-import ShiftyAlpaca.model.EventWrapper;
 
 /** Spring implements the methods in this interface behind the scenes
  * as necessary to carry out CRUD operations against the chosen DB.
@@ -12,6 +12,6 @@ import ShiftyAlpaca.model.EventWrapper;
  *
  */
 @Repository
-public interface EventWrapperRepo extends CrudRepository<EventWrapper, Long> {
+public interface SlackWrapperRepo extends CrudRepository<SlackWrapper, Long> {
 
 }

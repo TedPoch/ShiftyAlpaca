@@ -1,11 +1,6 @@
 package ShiftyAlpaca.model;
 
-import org.hibernate.annotations.GenericGenerator;
-
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-
-/* This interface allows us to create a return type in the
+/** This interface allows us to create a return type in the
     AnalyzerController.java returnResult() method. I can now
     implement the interface in my VerificationResponse and
     QueryResponse classes and return either of them in

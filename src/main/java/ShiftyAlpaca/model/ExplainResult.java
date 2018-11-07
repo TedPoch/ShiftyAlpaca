@@ -1,7 +1,5 @@
 package ShiftyAlpaca.model;
 
-import lombok.Data;
-
 import javax.persistence.*;
 import java.io.Serializable;
 
@@ -16,7 +14,6 @@ import java.io.Serializable;
  *
  * https://mariadb.com/kb/en/library/explain/
  */
-@Data
 @Entity
 @Table(name = "explain_results")
 public class ExplainResult implements Serializable {
@@ -47,7 +44,87 @@ public class ExplainResult implements Serializable {
 
   public ExplainResult(){}
 
-/**Uncomment this block if we add functionality for ANALYZE statements
+  public Long getResult_id() {
+    return result_id;
+  }
+
+  public void setResult_id(Long result_id) {
+    this.result_id = result_id;
+  }
+
+  public int getId() {
+    return id;
+  }
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public String getSelect_type() {
+    return select_type;
+  }
+
+  public void setSelect_type(String select_type) {
+    this.select_type = select_type;
+  }
+
+  public String getQueried_table() {
+    return queried_table;
+  }
+
+  public void setQueried_table(String queried_table) {
+    this.queried_table = queried_table;
+  }
+
+  public String getType() {
+    return type;
+  }
+
+  public void setType(String type) {
+    this.type = type;
+  }
+
+  public String getPossible_keys() {
+    return possible_keys;
+  }
+
+  public void setPossible_keys(String possible_keys) {
+    this.possible_keys = possible_keys;
+  }
+
+  public String getQueried_key() {
+    return queried_key;
+  }
+
+  public void setQueried_key(String queried_key) {
+    this.queried_key = queried_key;
+  }
+
+  public int getKey_len() {
+    return key_len;
+  }
+
+  public void setKey_len(int key_len) {
+    this.key_len = key_len;
+  }
+
+  public String getRef() {
+    return ref;
+  }
+
+  public void setRef(String ref) {
+    this.ref = ref;
+  }
+
+  public String getExtra() {
+    return Extra;
+  }
+
+  public void setExtra(String extra) {
+    Extra = extra;
+  }
+
+  /**Uncomment this block if we add functionality for ANALYZE statements
  *
   //An estimate of how many rows found in the table for each key lookup
   private int rows;

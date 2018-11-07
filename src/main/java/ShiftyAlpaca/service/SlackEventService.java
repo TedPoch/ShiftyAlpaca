@@ -1,11 +1,10 @@
 package ShiftyAlpaca.service;
 
-import ShiftyAlpaca.model.ExplainResult;
-import ShiftyAlpaca.model.EventWrapper;
-import ShiftyAlpaca.model.VerificationResponse;
+import ShiftyAlpaca.model.*;
 import ShiftyAlpaca.repository.ExplainResultRepo;
-import ShiftyAlpaca.repository.EventWrapperRepo;
+import ShiftyAlpaca.repository.SlackWrapperRepo;
 import ShiftyAlpaca.repository.ResultRowMapper;
+import ShiftyAlpaca.repository.UserRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.javatuples.Pair;
@@ -21,8 +20,9 @@ import org.springframework.web.client.RestTemplate;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,19 +36,12 @@ import java.util.regex.Pattern;
 @Service  //This makes the service a singleton by default
 public class SlackEventService {
 
-  private String URL_BASE = "https://slack.com/api";
-  @Value( "${client.id}" )
-  private String CLIENT_ID;
-  @Value( "${client.secret}" )
-  private String CLIENT_SECRET;
-  @Value("${bot.token}")
-  private String BOT_TOKEN;
   @Autowired
-  private EventWrapperRepo eventWrapperRepo;
+  private SlackWrapperRepo slackWrapperRepo;
   @Autowired
   private ExplainResultRepo explainResultRepo;
   @Autowired
-  private JdbcTemplate jdbcTemplate;
+  private UserRepo userRepo;
 
   //Intermediate members. Remove after local DB testing is done and
   //  messaging system is set up
@@ -60,6 +53,15 @@ public class SlackEventService {
   private String testDBURL;
   @Value("${spring.datasource.beta.driver-class-name}")
   private String testDBdriver;
+
+  //Need these to post responses to Slack until OAUTH code is ready
+  private String URL_BASE = "https://slack.com/api";
+  @Value( "${client.id}" )
+  private String CLIENT_ID;
+  @Value( "${client.secret}" )
+  private String CLIENT_SECRET;
+  @Value("${bot.token}")
+  private String BOT_TOKEN;
 
   /**TODO: Temporary: Single method that will store a user query in a
    * database for record-keeping. Method will then run EXPLAIN on
@@ -73,108 +75,73 @@ public class SlackEventService {
    */
   public void respond(JsonNode event) {
     if (!messageFromBot(event)) {
-      EventWrapper eWrapper = new EventWrapper();
       ObjectMapper mapper = new ObjectMapper();
       try {
-        //Creating the eventWrapper with the ObjMapper also creates the nested
-        //  'Event' object
-        //  BUT, we need to set the foreign key of the Event to the parent wrapper
-        eWrapper = mapper.readValue(event.toString(), EventWrapper.class);
-        eWrapper.getEvent().setEventWrapper(eWrapper);
+        //Creating the slackWrapper with the ObjMapper also creates the nested
+        //  'SlackEvent' object
+        //  BUT, we need to set the foreign key of the SlackEvent to the parent wrapper
+
+//      Instantiate/Load parent object
+//      Instantiate/Load child objects
+//      Set the parent object in the child objects
+//      Create a collection of child objects
+//      Set the collection of child objects on the parent
+//      Save the parent
+
+        User slackUser = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
+        List<SlackWrapper> queries = new ArrayList<>();
+
+        SlackWrapper slackWrapper = new SlackWrapper();
+        slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
+        slackWrapper.setUserIdentity(slackUser.getUserIdent());
+
+        SlackEvent slackEvent = new SlackEvent();
+        slackEvent = mapper.readValue(event.get("event").toString(), SlackEvent.class);
+
+        slackWrapper.setEvent(slackEvent);
+        slackEvent.setSlackWrapper(slackWrapper);
+
+        queries.add(slackWrapper);
+        slackUser.setQueries(queries);
+        userRepo.save(slackUser);
+
+        //translate slackEvent text into EXPLAIN
+        Pair<String, List<Object>> parsedQueryTuple =
+                parseSqlForPreparedStatement(slackWrapper.getEvent().getText());
+
+        //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
+
+        //connect to DB
+        //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
+        DataSource ds = DataSourceBuilder.create()
+                .username(testDBusername)
+                .password(testDBpassword)
+                .url(testDBURL)
+                .driverClassName(testDBdriver)
+                .build();
+
+        //run jdbcTemplate statement
+        JdbcTemplate explainThis = new JdbcTemplate(ds);
+        List<ExplainResult> result = analyzeQuery(explainThis, parsedQueryTuple);
+
+        //store result app's record-keeping database
+        //  established by ExplainResultRepo
+        for (ExplainResult r : result) {
+          explainResultRepo.save(r);
+        }
+
+        //run decision tree logic
+
+        //return recommendation string to user
+
+        postToUser(slackWrapper.getEvent().getChannel(),
+                slackWrapper.getEvent().getText(),
+                URL_BASE + "/chat.postMessage");
+
       } catch (IOException exception) {
         exception.printStackTrace();
       }
-      //TODO: pickup this mess up and refactor.
-      //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
-      eventWrapperRepo.save(eWrapper);
-
-      //translate event text into EXPLAIN
-      Pair<String, List<Object>> parsedQueryTuple =
-              parseSqlForPreparedStatement(eWrapper.getEvent().getText());
-
-      //connect to DB
-      //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
-      DataSource ds = DataSourceBuilder.create()
-              .username(testDBusername)
-              .password(testDBpassword)
-              .url(testDBURL)
-              .driverClassName(testDBdriver)
-              .build();
-
-      //run jdbcTemplate statement
-      JdbcTemplate explainThis = new JdbcTemplate(ds);
-      List<ExplainResult> result = analyzeQuery(explainThis, parsedQueryTuple);
-
-      //store result app's record-keeping database
-      //  established by ExplainResultRepo
-      for (ExplainResult r : result) {
-        explainResultRepo.save(r);
-      }
-      //run decision tree logic
-
-      //return recommendation string to user
-
-      postToUser(eWrapper.getEvent().getChannel(), eWrapper.getEvent().getText());
     }
-  }
-
-  /** Handles the Slack API's verification event when initially establishing the url
-   * of this application as the true home of the bot's brains.
-   *
-   * @param challenge comes in at the controller from Slack. No need to store, just return.
-   * @return - This will be the same token sent by the Slack API in the 'challenge' field.
-   */
-  public VerificationResponse verificationResponse(JsonNode challenge) {
-    return new VerificationResponse(challenge.get("challenge").asText());
-  }
-
-  /** When the applications provides a response for the Slackbot to post in chat, that chatpost
-   * will also be picked up by the Slack Events API and will itself be POSTed back to the application.
-   *
-   * This potential loop is defeated with this method, which simply checks for the existence of a bot_id
-   * in the Event post. The field does not exist in user message events.
-   *
-   * @return - true if message event is from a Slackbot.
-   */
-  private boolean messageFromBot(JsonNode event) {
-    return (event.get("event").get("bot_id") != null);
-  }
-
-  /** This method will be called from the Async respond() above in order to post a message
-   * back to the Slack user.
-   *
-   * @param channel - can be the UID for a room or a DM with a user
-   * @param text - the response we wish to send to the Slack user requesting our service
-   */
-  public void postToUser(String channel, String text){
-    RestTemplate resp = new RestTemplate();
-    MultiValueMap<String, Object> map = new LinkedMultiValueMap();
-    map.add("channel", channel);
-    map.add("text", text);
-    map.add("token", BOT_TOKEN); //TODO: work on saving the token somewhere secure
-
-    //RestTemplate does POST on URL with map object of response data
-    resp.postForObject(URL_BASE + "/chat.postMessage", map, String.class);
-  }
-
-  /** Create a MariaDB ExplainResult statement object after running the
-   * query on the chosen DB in context.
-   * @return
-   */
-  public List<ExplainResult> analyzeQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
-    try{
-      String parsedSQL = sql.getValue0();
-      Object[] args = sql.getValue1().toArray();
-      List<ExplainResult> ret = ds.query("EXPLAIN " + parsedSQL,
-              args, new ResultRowMapper());
-      return ret;
-    } catch (Exception e) {
-      System.out.println(e.getMessage());
-    }
-    ExplainResult ret = new ExplainResult();
-    List<ExplainResult> retList = new ArrayList<>();
-    retList.add(ret);
-    return retList;
   }
 
   /** Parse a user submitted SQL statement for parameters, e.g. the argument for a
@@ -201,13 +168,83 @@ public class SlackEventService {
     return new Pair<>(matcher.replaceAll("?"), retList);
   }
 
-  public synchronized boolean addEvent(EventWrapper event) {
-    //TODO: stub for event service method
+  /** Create a MariaDB ExplainResult statement object after running the
+   * query on the chosen DB in context.
+   * @return
+   */
+  public List<ExplainResult> analyzeQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
+    try{
+      String parsedSQL = sql.getValue0();
+      Object[] args = sql.getValue1().toArray();
+      List<ExplainResult> ret = ds.query("EXPLAIN " + parsedSQL,
+              args, new ResultRowMapper());
+      return ret;
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+    ExplainResult ret = new ExplainResult();
+    List<ExplainResult> retList = new ArrayList<>();
+    retList.add(ret);
+    return retList;
+  }
+
+  /** When the applications provides a response for the Slackbot to post in chat, that chatpost
+   * will also be picked up by the Slack Events API and will itself be POSTed back to the application.
+   *
+   * This potential loop is defeated with this method, which simply checks for the existence of a bot_id
+   * in the SlackEvent post. The field does not exist in user message events.
+   *
+   * @return - true if message slackEvent is from a Slackbot.
+   */
+  private boolean messageFromBot(JsonNode event) {
+    return (event.get("event").get("bot_id") != null);
+  }
+
+  /** This method will be called from the Async respond() above in order to post a message
+   * back to the Slack user.
+   *
+   * @param channel - can be the UID for a room or a DM with a user
+   * @param text - the response we wish to send to the Slack user requesting our service
+   */
+  public void postToUser(String channel, String text, String postURL){
+    RestTemplate resp = new RestTemplate();
+    MultiValueMap<String, Object> map = new LinkedMultiValueMap();
+    map.add("channel", channel);
+    map.add("text", text);
+    map.add("token", BOT_TOKEN); //TODO: work on saving the token somewhere secure
+
+    //RestTemplate does POST on URL with map object of response data
+    resp.postForObject(postURL, map, String.class);
+  }
+
+  /** Handles the Slack API's verification slackEvent when initially establishing the url
+   * of this application as the true home of the bot's brains.
+   *
+   * @param challenge comes in at the controller from Slack. No need to store, just return.
+   * @return - This will be the same token sent by the Slack API in the 'challenge' field.
+   */
+  public VerificationResponse verificationResponse(JsonNode challenge) {
+    return new VerificationResponse(challenge);
+  }
+
+  public synchronized boolean addEvent(SlackWrapper event) {
+    //TODO: stub for slackEvent service method
     return false;
   }
 
-  public EventWrapper getEventByEventID(String event_id) {
-    //TODO: stub for event service method
+  public SlackWrapper getEventByEventID(String event_id) {
+    //TODO: stub for slackEvent service method
     return null;
+  }
+
+  /** Only used for JUnit testing. The autowiring does not work with JUnit tests,
+   * but the repos are necessary in order to test the processes.
+   *
+   * @param swr
+   * @param err
+   */
+  public void setReposForTesting(SlackWrapperRepo swr, ExplainResultRepo err) {
+    this.slackWrapperRepo = swr;
+    this.explainResultRepo = err;
   }
 }
