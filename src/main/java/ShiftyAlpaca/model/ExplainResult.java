@@ -3,11 +3,11 @@ package ShiftyAlpaca.model;
 import javax.persistence.*;
 import java.io.Serializable;
 
-/** This model class will help process the result from an ANALYZE
+/** This model class will hold the result from an EXPLAIN
  * statement run against the respective database.
  *
- * The ANALYZE command adds two additional columns not found in
- * EXPLAIN or EXPLAIN EXTENDED: r_rows & r_filtered (explained below).
+ * Expandable: The ANALYZE command adds additional columns not found in
+ * EXPLAIN or EXPLAIN EXTENDED: e.g. r_rows & r_filtered (explained below).
  *
  * See MariaDB documention on Explain & Analyze commands for added
  * information on the below columns.
@@ -19,8 +19,15 @@ import java.io.Serializable;
 public class ExplainResult implements Serializable {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long result_id;
+  @GeneratedValue(strategy = GenerationType.AUTO)
+  private Long explain_result_pk;
+
+  /** EXPLAIN results often return multiple result rows. These are saved as seperate
+   * ExplainResult objects, and added/persisted to a List<ExplainResult> inside the
+   * SlackWrapper object/DB entry.
+   */
+  @ManyToOne(cascade = CascadeType.ALL)
+  private SlackWrapper slackWrapper;
 
   //Sequence number that shows in which order tables are joined.
   private int id;
@@ -44,12 +51,20 @@ public class ExplainResult implements Serializable {
 
   public ExplainResult(){}
 
-  public Long getResult_id() {
-    return result_id;
+  public Long getExplain_result_pk() {
+    return explain_result_pk;
   }
 
-  public void setResult_id(Long result_id) {
-    this.result_id = result_id;
+  public void setExplain_result_pk(Long explain_result_pk) {
+    this.explain_result_pk = explain_result_pk;
+  }
+
+  public SlackWrapper getSlackWrapper() {
+    return slackWrapper;
+  }
+
+  public void setSlackWrapper(SlackWrapper slackWrapper) {
+    this.slackWrapper = slackWrapper;
   }
 
   public int getId() {

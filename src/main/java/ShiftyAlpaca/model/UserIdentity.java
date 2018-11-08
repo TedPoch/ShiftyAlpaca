@@ -3,9 +3,23 @@ package ShiftyAlpaca.model;
 import javax.persistence.Embeddable;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.io.Serializable;
 
+/** This class establishes the composite primary key for each
+ * instance/persistence of a new User object/DB row. It is referred
+ * in the User.class by the annotation @EmbeddedID.
+ *
+ * According to Slack API documentation, a 'user' identifier starts
+ * with either a 'W' or a 'U' and is only unique to the user's current
+ * workspace. So the combination of a 'user' and 'team_id' is necessary
+ * to guarantee a unique User in this application.
+ *
+ * The User object constructor requires an instantiation of this class.
+ * The User.class does not need to be serialized.
+ *
+ */
 @Embeddable
-public class UserIdentity {
+public class UserIdentity implements Serializable {
 
   @NotNull
   @Size(max = 12)

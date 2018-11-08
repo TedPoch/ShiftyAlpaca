@@ -2,8 +2,8 @@ package ShiftyAlpaca.service;
 
 import ShiftyAlpaca.model.*;
 import ShiftyAlpaca.repository.ExplainResultRepo;
-import ShiftyAlpaca.repository.SlackWrapperRepo;
 import ShiftyAlpaca.repository.ResultRowMapper;
+import ShiftyAlpaca.repository.SlackWrapperRepo;
 import ShiftyAlpaca.repository.UserRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,17 +12,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,27 +71,19 @@ public class SlackEventService {
    *
    * @return - Text string with recommended course of action.
    */
-  public void respond(JsonNode event) {
+  @Async
+  public void respond(JsonNode event) throws InterruptedException {
+    // Artificial delay of 5s for demonstration purposes
+    Thread.sleep(5000L);
     if (!messageFromBot(event)) {
       ObjectMapper mapper = new ObjectMapper();
       try {
-        //Creating the slackWrapper with the ObjMapper also creates the nested
-        //  'SlackEvent' object
-        //  BUT, we need to set the foreign key of the SlackEvent to the parent wrapper
-
-//      Instantiate/Load parent object
-//      Instantiate/Load child objects
-//      Set the parent object in the child objects
-//      Create a collection of child objects
-//      Set the collection of child objects on the parent
-//      Save the parent
-
         User slackUser = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
         List<SlackWrapper> queries = new ArrayList<>();
 
         SlackWrapper slackWrapper = new SlackWrapper();
         slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
-        slackWrapper.setUserIdentity(slackUser.getUserIdent());
+        slackWrapper.setUser(slackUser);
 
         SlackEvent slackEvent = new SlackEvent();
         slackEvent = mapper.readValue(event.get("event").toString(), SlackEvent.class);
@@ -103,16 +93,12 @@ public class SlackEventService {
 
         queries.add(slackWrapper);
         slackUser.setQueries(queries);
-        userRepo.save(slackUser);
 
         //translate slackEvent text into EXPLAIN
         Pair<String, List<Object>> parsedQueryTuple =
                 parseSqlForPreparedStatement(slackWrapper.getEvent().getText());
 
-        //QueryDatabaseContextHolder.set(QueryDatabase.TEST_ALPHA);
-
         //connect to DB
-        //QueryDatabaseContextHolder.set(QueryDatabase.TEST_BETA);
         DataSource ds = DataSourceBuilder.create()
                 .username(testDBusername)
                 .password(testDBpassword)
@@ -126,14 +112,17 @@ public class SlackEventService {
 
         //store result app's record-keeping database
         //  established by ExplainResultRepo
+        List<ExplainResult> results = new ArrayList<>();
         for (ExplainResult r : result) {
-          explainResultRepo.save(r);
+          r.setSlackWrapper(slackWrapper);
+          results.add(r);
         }
+        slackWrapper.setExplain_results(results);
+        userRepo.save(slackUser);
 
         //run decision tree logic
 
         //return recommendation string to user
-
         postToUser(slackWrapper.getEvent().getChannel(),
                 slackWrapper.getEvent().getText(),
                 URL_BASE + "/chat.postMessage");

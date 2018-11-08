@@ -2,10 +2,13 @@ package ShiftyAlpaca.controller;
 
 import ShiftyAlpaca.service.SlackEventService;
 import com.fasterxml.jackson.databind.JsonNode;
-import ShiftyAlpaca.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AnalyzerController {
@@ -24,17 +27,17 @@ public class AnalyzerController {
      */
     //@PostMapping(value="/analyzer", produces="application/json", consumes="application/json")
     @PostMapping(value = "/analyzer", produces = MediaType.TEXT_PLAIN_VALUE)
-    public String returnResult(@RequestBody JsonNode event) {
+    public ResponseEntity returnResult(@RequestBody JsonNode event) throws Exception {
 
       switch (event.get("type").asText()) {
 
         case "event_callback":
           //TODO: make this ASYNC so Slack gets 'OK' in timely manner
           slackEventService.respond(event);
-          return "Ok";
+          return new ResponseEntity(HttpStatus.OK);
 
         case "url_verification":
-          return slackEventService.verificationResponse(event).getChallenge();
+          return new ResponseEntity<>(slackEventService.verificationResponse(event).getChallenge(), HttpStatus.OK);
 
         default:
           return null;

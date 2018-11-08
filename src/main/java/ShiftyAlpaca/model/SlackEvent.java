@@ -1,26 +1,28 @@
 package ShiftyAlpaca.model;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import lombok.Data;
 import javax.persistence.*;
 import java.io.Serializable;
 
-/*  This class represents the JSON object for a specific Slack Events API
-    callback and is always wrapped inside of an SlackWrapper when sent from
-    Slack and when saved by this application.
-
+/**  This class represents the JSON object for a specific Slack Events API
+ * callback and is always wrapped inside of a SlackWrapper.class object when
+ * sent from Slack and when saved by this application (assuming the primary Slack
+ * JSON message is of 'type':'event_callback').
+ *
+ * The JsonIdentityInfo annotation prevents infinite recursion while setting this
+ * class's parent member, and that parent member's child object to each other inside of
+ * the relevant service.class.
  */
 @Entity
 @Table(name = "slack_events")
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
-        property = "event_id")
+        property = "slack_event_pk")
 public class SlackEvent implements Serializable {
-  @Id     //While SlackWrapper uses a Slack SlackEvent provided unique string as the PK, here we gen our own
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long event_id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.AUTO)
+  private Long slack_event_pk;
 
   private String client_msg_id;
   private String type;
@@ -31,19 +33,21 @@ public class SlackEvent implements Serializable {
   private String event_ts;
   private String channel_type;
 
+  /** See comment on SlackEvent member in SlackWrapper.class
+   *
+   */
   @OneToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "wrapper_id", nullable = false)
-  //@JsonManagedReference //prevents Jackson inifinite recursion
+  @JoinColumn(name = "slack_wrapper_pk", nullable = false)
   private SlackWrapper slackWrapper;
 
   public SlackEvent(){}
 
-  public Long getEvent_id() {
-    return event_id;
+  public Long getSlack_event_pk() {
+    return slack_event_pk;
   }
 
-  public void setEvent_id(Long event_id) {
-    this.event_id = event_id;
+  public void setSlack_event_pk(Long slack_event_pk) {
+    this.slack_event_pk = slack_event_pk;
   }
 
   public String getClient_msg_id() {
