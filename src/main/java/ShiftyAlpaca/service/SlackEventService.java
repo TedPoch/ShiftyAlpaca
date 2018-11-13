@@ -67,36 +67,34 @@ public class SlackEventService {
    * via the AnalyzeController with a recommendation to speak with
    * a DBA.
    *
+   * ASYNC: this method runs during/after AnalyzerController responds
+   * to Slack API with HTTP 200 OK. Relies on Executor.class @Bean
+   * inside of this app's Application.class file.
+   *
    * @param event - Text string from user via Slack (Json)
    *
    * @return - Text string with recommended course of action.
    */
   @Async
   public void respond(JsonNode event) throws InterruptedException {
-    // Artificial delay of 5s for demonstration purposes
-    Thread.sleep(5000L);
     if (!messageFromBot(event)) {
       ObjectMapper mapper = new ObjectMapper();
       try {
+        //Create relevant models for persistence. User is the parent record; we map the persistence entry and save
+        //  using the userRepo.
         User slackUser = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
         List<SlackWrapper> queries = new ArrayList<>();
+        SlackWrapper slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
+        SlackEvent slackEvent = mapper.readValue(event.get("event").toString(), SlackEvent.class);
 
-        SlackWrapper slackWrapper = new SlackWrapper();
-        slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
+        //Connect the models prior to persisting them
         slackWrapper.setUser(slackUser);
-
-        SlackEvent slackEvent = new SlackEvent();
-        slackEvent = mapper.readValue(event.get("event").toString(), SlackEvent.class);
-
         slackWrapper.setEvent(slackEvent);
         slackEvent.setSlackWrapper(slackWrapper);
 
+        //Add the newest query (or slackwrapper) and update the User's list of prior queries
         queries.add(slackWrapper);
         slackUser.setQueries(queries);
-
-        //translate slackEvent text into EXPLAIN
-        Pair<String, List<Object>> parsedQueryTuple =
-                parseSqlForPreparedStatement(slackWrapper.getEvent().getText());
 
         //connect to DB
         DataSource ds = DataSourceBuilder.create()
@@ -106,25 +104,34 @@ public class SlackEventService {
                 .driverClassName(testDBdriver)
                 .build();
 
-        //run jdbcTemplate statement
-        JdbcTemplate explainThis = new JdbcTemplate(ds);
-        List<ExplainResult> result = analyzeQuery(explainThis, parsedQueryTuple);
+        //translate slackEvent text into EXPLAIN
+        //  Pair<String, ...> - is the query with args removed to prevent SQL injection
+        //  Pair<..., List<Object> - is the list of args extracted from the SQL statement
+        Pair<String, List<Object>> parsedQueryTuple =
+                parseSqlForPreparedStatement(slackWrapper.getEvent().getText());
 
-        //store result app's record-keeping database
-        //  established by ExplainResultRepo
-        List<ExplainResult> results = new ArrayList<>();
-        for (ExplainResult r : result) {
+        //run jdbcTemplate statement; using the above tuple
+        JdbcTemplate explainThis = new JdbcTemplate(ds);
+        List<ExplainResult> explainQueryResults = runExplainQuery(explainThis, parsedQueryTuple);
+
+        //According to query log DB schema, ExplainResults need a mapping to the parent query (slackWrapper)
+        //  And that parent wrapper maintains a List of ExplainResults. Create the bi-directional rel here.
+        //List<ExplainResult> results = new ArrayList<>();
+        for (ExplainResult r : explainQueryResults) {
           r.setSlackWrapper(slackWrapper);
-          results.add(r);
+          //results.add(r);
         }
-        slackWrapper.setExplain_results(results);
+        slackWrapper.setExplain_results(explainQueryResults);
+
+        //All bi-directional rels among the relevant tables are created; persist it via the UserRepository object
         userRepo.save(slackUser);
 
         //run decision tree logic
-
-        //return recommendation string to user
+        //input the result set
+        //send back the yay or nay
+        String response = courseOfAction(explainQueryResults);
         postToUser(slackWrapper.getEvent().getChannel(),
-                slackWrapper.getEvent().getText(),
+                response,
                 URL_BASE + "/chat.postMessage");
 
       } catch (IOException exception) {
@@ -157,11 +164,12 @@ public class SlackEventService {
     return new Pair<>(matcher.replaceAll("?"), retList);
   }
 
-  /** Create a MariaDB ExplainResult statement object after running the
+  /** Create a list of ExplainResult objects after running the
    * query on the chosen DB in context.
-   * @return
+   *
+   * @return - List<ExplainResult> as some EXPLAINs return multiple rows
    */
-  public List<ExplainResult> analyzeQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
+  public List<ExplainResult> runExplainQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
     try{
       String parsedSQL = sql.getValue0();
       Object[] args = sql.getValue1().toArray();
@@ -187,6 +195,32 @@ public class SlackEventService {
    */
   private boolean messageFromBot(JsonNode event) {
     return (event.get("event").get("bot_id") != null);
+  }
+
+  /** This method contains the primary logic that determines whether the SQL that the front end user
+   * is acceptable for production use or whether they should visit a DBA to refine their query.
+   *
+   * @param explainQueryResults - set of result rows returned after the user's SQL was run in EXPLAIN
+   * @return  String - basically a yay or nay for now, but could add character later, possibly with ENUM of responses
+   */
+  private String courseOfAction(List<ExplainResult> explainQueryResults){
+    //TODO: stub
+    /**
+     * Questions:
+     * does it have index?
+     *    are possible rows above 100K?
+     *      deny query
+     *    else, go to next step
+     *
+     */
+    for (ExplainResult r : explainQueryResults){
+      if (r.getQueried_rows() > 100000){
+        if (r.getQueried_key() == "NULL"){
+          return "Nay";
+        }
+      }
+    }
+    return "Yay";
   }
 
   /** This method will be called from the Async respond() above in order to post a message

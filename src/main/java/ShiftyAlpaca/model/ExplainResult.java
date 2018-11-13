@@ -46,6 +46,8 @@ public class ExplainResult implements Serializable {
   private int key_len;
   //The reference that is used to as the key value.
   private String ref;
+  //An estimate of how many rows found in the table for each key lookup
+  private long queried_rows;
   //Extra info about this join
   private String Extra;
 
@@ -131,6 +133,13 @@ public class ExplainResult implements Serializable {
     this.ref = ref;
   }
 
+  public long getQueried_rows() { return queried_rows;
+  }
+
+  public void setQueried_rows(long queried_rows) {
+    this.queried_rows = queried_rows;
+  }
+
   public String getExtra() {
     return Extra;
   }
@@ -141,8 +150,6 @@ public class ExplainResult implements Serializable {
 
   /**Uncomment this block if we add functionality for ANALYZE statements
  *
-  //An estimate of how many rows found in the table for each key lookup
-  private int rows;
   //An observation-based counterpart of the rows column. It shows how
   // many rows were actually read from the table.
   private int r_rows;

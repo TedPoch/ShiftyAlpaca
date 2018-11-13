@@ -19,10 +19,10 @@ public class ResultRowMapper implements RowMapper<ExplainResult> {
     result.setQueried_key(rs.getString("key"));
     result.setKey_len(rs.getInt("key_len"));
     result.setRef(rs.getString("ref"));
+    result.setQueried_rows(rs.getLong("rows"));
     result.setExtra(rs.getString("Extra"));
 
 /** Uncomment this row if we add functionality for ANALYZE statements
-    result.setRows(rs.getInt("rows"));
     result.setR_rows(rs.getInt("r_rows"));
     result.setFiltered(rs.getFloat("filtered"));
     result.setR_filtered(rs.getFload("r_filtered"));
