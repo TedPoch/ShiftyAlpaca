@@ -19,8 +19,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,9 +46,9 @@ public class SlackEventService {
   private String testDBusername;
   @Value("${spring.datasource.alpha.password}")
   private String testDBpassword;
-  @Value("${spring.datasource.beta.url}")
+  @Value("${spring.datasource.alpha.url}")
   private String testDBURL;
-  @Value("${spring.datasource.beta.driver-class-name}")
+  @Value("${spring.datasource.alpha.driver-class-name}")
   private String testDBdriver;
 
   //Need these to post responses to Slack until OAUTH code is ready
@@ -131,8 +130,8 @@ public class SlackEventService {
         //send back the yay or nay
         String response = courseOfAction(explainQueryResults);
         postToUser(slackWrapper.getEvent().getChannel(),
-                response,
-                URL_BASE + "/chat.postMessage");
+                   response,
+                  URL_BASE + "/chat.postMessage");
 
       } catch (IOException exception) {
         exception.printStackTrace();
@@ -213,14 +212,37 @@ public class SlackEventService {
      *    else, go to next step
      *
      */
+
+    Set<String> allowedTypes = new HashSet<>(Arrays.asList("eq_ref",
+                                      "fulltext",
+                                      "index_merge",
+                                      "index_sub",
+                                      "index",
+                                      "range"));
+    Set<String> allowedExtras = new HashSet<>(Arrays.asList("Distinct",
+                                                            "Full scan on NULL key",
+                                                            "Impossible HAVING",
+                                                            "Impossible WHERE noticed after reading const tables",
+                                                            "Impossible WHERE",
+                                                            "No matching min/max row",
+                                                            "no matching row in const table",
+                                                            "No tables used",
+                                                            "unique row not found",
+                                                            "Using filesort"));
     for (ExplainResult r : explainQueryResults){
       if (r.getQueried_rows() > 100000){
         if (r.getQueried_key() == "NULL"){
           return "Nay";
         }
       }
+      if (!allowedTypes.contains(r.getType())){
+          return "Nay";
+      }
+      if (allowedExtras.contains(r.getExtra())){
+          return "Nay";
+      }
     }
-    return "Yay";
+    return "Yea";
   }
 
   /** This method will be called from the Async respond() above in order to post a message

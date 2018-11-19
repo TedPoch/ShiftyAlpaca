@@ -1,18 +1,10 @@
 package ShiftyAlpaca.controller;
 
-import ShiftyAlpaca.model.SlackWrapper;
 import ShiftyAlpaca.model.VerificationResponse;
-import ShiftyAlpaca.repository.SlackWrapperRepo;
 import ShiftyAlpaca.service.SlackEventService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.servlet.ModelAndView;
-
-import java.io.File;
-import java.io.IOException;
 
 public class TestAnalyzerController {
 
