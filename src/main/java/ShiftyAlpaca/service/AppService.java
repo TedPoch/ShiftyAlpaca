@@ -1,5 +1,6 @@
 package ShiftyAlpaca.service;
 
+import ShiftyAlpaca.controller.AnalyzerController;
 import ShiftyAlpaca.model.Credentials;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,8 +23,6 @@ public class AppService {
 
   @Autowired
   private CredentialService currentCredentials;
-
-  //TODO: handle the OAUTH
 
   /** See https://api.slack.com/docs/oauth
    *
@@ -74,6 +73,8 @@ public class AppService {
     ObjectMapper mapper = new ObjectMapper();
     JsonNode main = mapper.readTree(message.getBody());
     JsonNode bot = main.path("bot");
+
+    System.out.println("Auth Method: " + bot.get("bot_access_token").asText());
 
     currentCredentials.setCredentials(new Credentials(bot.get("bot_user_id").asText(),
                                                       bot.get("bot_access_token").asText()));

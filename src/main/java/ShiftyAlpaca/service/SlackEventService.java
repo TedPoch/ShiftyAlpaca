@@ -51,14 +51,11 @@ public class SlackEventService {
   @Value("${spring.datasource.alpha.driver-class-name}")
   private String testDBdriver;
 
-  //Need these to post responses to Slack until OAUTH code is ready
   private String URL_BASE = "https://slack.com/api";
-  @Value( "${client.id}" )
-  private String CLIENT_ID;
-  @Value( "${client.secret}" )
-  private String CLIENT_SECRET;
-  @Value("${bot.token}")
-  private String BOT_TOKEN;
+
+  private CredentialService credentialService;
+
+  public SlackEventService(CredentialService credentialService) { this.credentialService = credentialService; }
 
   /**TODO: Temporary: Single method that will store a user query in a
    * database for record-keeping. Method will then run EXPLAIN on
@@ -252,11 +249,13 @@ public class SlackEventService {
    * @param text - the response we wish to send to the Slack user requesting our service
    */
   public void postToUser(String channel, String text, String postURL){
+    System.out.println("Testing PostToUser: " + credentialService.getCredentials().getAccess_token());
+
     RestTemplate resp = new RestTemplate();
     MultiValueMap<String, Object> map = new LinkedMultiValueMap();
     map.add("channel", channel);
     map.add("text", text);
-    map.add("token", BOT_TOKEN); //TODO: work on saving the token somewhere secure
+    map.add("token", credentialService.getCredentials().getAccess_token()); //TODO: work on saving the token somewhere secure
 
     //RestTemplate does POST on URL with map object of response data
     resp.postForObject(postURL, map, String.class);

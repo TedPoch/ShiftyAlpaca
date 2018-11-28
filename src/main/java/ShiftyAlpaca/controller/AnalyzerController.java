@@ -21,24 +21,18 @@ public class AnalyzerController {
 
      case: event_callback is the basic slackEvent that should contain queries for analysis
      case: url_verification is the test run by the Slack API to confirm the application's URL
-
-     TODO: figure out if Slack runs verify more often than just the initial setup
-
      */
     //@PostMapping(value="/analyzer", produces="application/json", consumes="application/json")
     @PostMapping(value = "/analyzer", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity returnResult(@RequestBody JsonNode event) throws Exception {
 
       switch (event.get("type").asText()) {
-
         case "event_callback":
           //The respond() method is Async; OK returns while respond() runs in back
           slackEventService.respond(event);
           return new ResponseEntity(HttpStatus.OK);
-
         case "url_verification":
           return new ResponseEntity<>(slackEventService.verificationResponse(event).getChallenge(), HttpStatus.OK);
-
         default:
           return null;
       }
