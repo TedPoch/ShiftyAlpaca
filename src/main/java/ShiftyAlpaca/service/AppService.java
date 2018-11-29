@@ -1,10 +1,12 @@
 package ShiftyAlpaca.service;
 
-import ShiftyAlpaca.controller.AnalyzerController;
 import ShiftyAlpaca.model.Credentials;
+import ShiftyAlpaca.model.SlackEvent;
+import ShiftyAlpaca.model.SlackWrapper;
+import ShiftyAlpaca.model.User;
+import ShiftyAlpaca.repository.UserRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,6 +16,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import javax.management.Query;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,8 +24,20 @@ import java.util.Map;
 @Service
 public class AppService {
 
-  @Autowired
-  private CredentialService currentCredentials;
+  private CredentialService credentialService;
+  private UserService userService;
+  private QueryService queryService;
+  private UserRepo userRepo;
+
+  public AppService(CredentialService credentialService,
+                    UserService userService,
+                    QueryService queryService,
+                    UserRepo userRepo) {
+    this.credentialService = credentialService;
+    this.userService = userService;
+    this.queryService = queryService;
+    this.userRepo = userRepo;
+  }
 
   /** See https://api.slack.com/docs/oauth
    *
@@ -76,7 +91,26 @@ public class AppService {
 
     System.out.println("Auth Method: " + bot.get("bot_access_token").asText());
 
-    currentCredentials.setCredentials(new Credentials(bot.get("bot_user_id").asText(),
+    credentialService.setCredentials(new Credentials(bot.get("bot_user_id").asText(),
                                                       bot.get("bot_access_token").asText()));
+  }
+
+  public void handleUserRequest(JsonNode json){
+    queryService.validate(json);
+    User user = userService.findOrCreateUser(json);
+
+    SlackWrapper wrapper = queryService.createWrapper(json);
+    SlackEvent event = queryService.createWrappedEvent(json);
+
+    //Connect the models prior to persisting them
+    wrapper.setUser(user);
+    wrapper.setEvent(event);
+    event.setSlackWrapper(wrapper);
+
+    user.setQuery();
+    user.setResults();
+
+    userRepo.save(user);
+
   }
 }

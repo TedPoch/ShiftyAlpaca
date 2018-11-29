@@ -78,19 +78,19 @@ public class SlackEventService {
       try {
         //Create relevant models for persistence. User is the parent record; we map the persistence entry and save
         //  using the userRepo.
-        User slackUser = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
+        User user = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
         List<SlackWrapper> queries = new ArrayList<>();
         SlackWrapper slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
         SlackEvent slackEvent = mapper.readValue(event.get("event").toString(), SlackEvent.class);
 
         //Connect the models prior to persisting them
-        slackWrapper.setUser(slackUser);
+        slackWrapper.setUser(user);
         slackWrapper.setEvent(slackEvent);
         slackEvent.setSlackWrapper(slackWrapper);
 
         //Add the newest query (or slackwrapper) and update the User's list of prior queries
         queries.add(slackWrapper);
-        slackUser.setQueries(queries);
+        user.setQueries(queries);
 
         //connect to DB
         DataSource ds = DataSourceBuilder.create()
@@ -120,7 +120,7 @@ public class SlackEventService {
         slackWrapper.setExplain_results(explainQueryResults);
 
         //All bi-directional rels among the relevant tables are created; persist it via the UserRepository object
-        userRepo.save(slackUser);
+        userRepo.save(user);
 
         //run decision tree logic
         //input the result set
