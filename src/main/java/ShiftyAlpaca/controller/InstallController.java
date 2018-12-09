@@ -32,7 +32,7 @@ public class InstallController {
   /** This 'thanks' method is triggered once the install request above is processed/approved.
    *  The AppService authorize() method is invoked using a 'code' provided from a successful
    *  'install' authorization. The 'code' is exchanged in this method for an OAUTH bot token
-   *  used by the app for the remainder of its lifetime. Will be replaced when app is reinstalled
+   *  used by the app for the remainder of its runtime. Will be replaced when app is reinstalled
    *  and/or restarted.
    *
    * @param code  -   Returned by Slack as part of the process of installing the app to a workspace

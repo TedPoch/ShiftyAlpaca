@@ -57,9 +57,9 @@ public class SlackEventService {
 
   public SlackEventService(CredentialService credentialService) { this.credentialService = credentialService; }
 
-  /**TODO: Temporary: Single method that will store a user query in a
+  /**Single method that will store a user query in a
    * database for record-keeping. Method will then run EXPLAIN on
-   * selected other DB, store that result, then "respond" to user
+   * selected DB, store that result, then "respond" to user
    * via the AnalyzeController with a recommendation to speak with
    * a DBA.
    *
@@ -252,10 +252,11 @@ public class SlackEventService {
     System.out.println("Testing PostToUser: " + credentialService.getCredentials().getAccess_token());
 
     RestTemplate resp = new RestTemplate();
+    //MultiValueMap might come in handy with later functionality
     MultiValueMap<String, Object> map = new LinkedMultiValueMap();
     map.add("channel", channel);
     map.add("text", text);
-    map.add("token", credentialService.getCredentials().getAccess_token()); //TODO: work on saving the token somewhere secure
+    map.add("token", credentialService.getCredentials().getAccess_token());
 
     //RestTemplate does POST on URL with map object of response data
     resp.postForObject(postURL, map, String.class);
