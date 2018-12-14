@@ -23,11 +23,11 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The EventWrapperService (Singleton by virtue of @Service) is
- * stood up by the AnalyzerController. This is where the business
- * logic resides, decoupled from the respective repository. The
- * repo will database the query request, translate/run the EXPLAIN
- * query, and store the result for retrieval by this service class.
+/** The EventWrapperService (Singleton by virtue of @Service) is a
+ * bean stood up by the framework. This is where the business
+ * logic resides, decoupled from the respective repository. The methods
+ * here receive requests, translate/run the EXPLAIN statements, persist
+ * the data via the UserRepository, and respond to the user with a recommendation.
  *
  */
 @Service  //This makes the service a singleton by default
@@ -42,6 +42,8 @@ public class SlackEventService {
 
   //Intermediate members. Remove after local DB testing is done and
   //  messaging system is set up
+  //  application.properties file maintains the values for these variable
+  //  app.prop is not version-controlled, in order to protect those vars
   @Value("${spring.datasource.alpha.username}")
   private String testDBusername;
   @Value("${spring.datasource.alpha.password}")
@@ -60,16 +62,14 @@ public class SlackEventService {
   /**Single method that will store a user query in a
    * database for record-keeping. Method will then run EXPLAIN on
    * selected DB, store that result, then "respond" to user
-   * via the AnalyzeController with a recommendation to speak with
-   * a DBA.
+   * via postToUser().
    *
    * ASYNC: this method runs during/after AnalyzerController responds
    * to Slack API with HTTP 200 OK. Relies on Executor.class @Bean
-   * inside of this app's Application.class file.
+   * inside of Application.class file.
    *
    * @param event - Text string from user via Slack (Json)
    *
-   * @return - Text string with recommended course of action.
    */
   @Async
   public void respond(JsonNode event) throws InterruptedException {
@@ -77,7 +77,7 @@ public class SlackEventService {
       ObjectMapper mapper = new ObjectMapper();
       try {
         //Create relevant models for persistence. User is the parent record; we map the persistence entry and save
-        //  using the userRepo.
+        //  using the userRepo later in method.
         User slackUser = new User(new UserIdentity(event.get("team_id").asText(), event.get("event").get("user").asText()));
         List<SlackWrapper> queries = new ArrayList<>();
         SlackWrapper slackWrapper = mapper.readValue(event.toString(), SlackWrapper.class);
@@ -92,7 +92,8 @@ public class SlackEventService {
         queries.add(slackWrapper);
         slackUser.setQueries(queries);
 
-        //connect to DB
+        //connect to test target DB (this is what EXPLAIN statement will target)
+        //    UserRepo is responsible for connecting to and updating the 'test' query logging DB
         DataSource ds = DataSourceBuilder.create()
                 .username(testDBusername)
                 .password(testDBpassword)
@@ -106,7 +107,7 @@ public class SlackEventService {
         Pair<String, List<Object>> parsedQueryTuple =
                 parseSqlForPreparedStatement(slackWrapper.getEvent().getText());
 
-        //run jdbcTemplate statement; using the above tuple
+        //run jdbcTemplate statement; using the above tuple/pair
         JdbcTemplate explainThis = new JdbcTemplate(ds);
         List<ExplainResult> explainQueryResults = runExplainQuery(explainThis, parsedQueryTuple);
 
@@ -115,7 +116,6 @@ public class SlackEventService {
         //List<ExplainResult> results = new ArrayList<>();
         for (ExplainResult r : explainQueryResults) {
           r.setSlackWrapper(slackWrapper);
-          //results.add(r);
         }
         slackWrapper.setExplain_results(explainQueryResults);
 
@@ -123,9 +123,8 @@ public class SlackEventService {
         userRepo.save(slackUser);
 
         //run decision tree logic
-        //input the result set
-        //send back the yay or nay
         String response = courseOfAction(explainQueryResults);
+        //send 'Proceed' or 'Caution' to user
         postToUser(slackWrapper.getEvent().getChannel(),
                    response,
                   URL_BASE + "/chat.postMessage");
@@ -163,7 +162,10 @@ public class SlackEventService {
   /** Create a list of ExplainResult objects after running the
    * query on the chosen DB in context.
    *
-   * @return - List<ExplainResult> as some EXPLAINs return multiple rows
+   * @param ds - The connection to the target DB
+   * @param sql - Tuple<String,List> of the SQL statement along with parameterized elements
+   *
+   * @return - List<ExplainResult> as some EXPLAIN statements return multiple rows
    */
   public List<ExplainResult> runExplainQuery(JdbcTemplate ds, Pair<String, List<Object>> sql) {
     try{
@@ -181,8 +183,8 @@ public class SlackEventService {
     return retList;
   }
 
-  /** When the applications provides a response for the Slackbot to post in chat, that chatpost
-   * will also be picked up by the Slack Events API and will itself be POSTed back to the application.
+  /** When the applications provides a response for the Slackbot to post in chat, that message post
+   * by the bot will also be picked up by the Slack Events API and will itself be POSTed back to the application.
    *
    * This potential loop is defeated with this method, which simply checks for the existence of a bot_id
    * in the SlackEvent post. The field does not exist in user message events.
@@ -200,7 +202,8 @@ public class SlackEventService {
    * @return  String - basically a yay or nay for now, but could add character later, possibly with ENUM of responses
    */
   private String courseOfAction(List<ExplainResult> explainQueryResults){
-    //TODO: stub
+    //TODO: flesh out this query to handle more complex combinations of EXPLAIN results and to also take
+    //TODO:     into account the field variables of each EXPLAIN result row. (one row per table accessed by EXPLAIN)
     /**
      * Questions:
      * does it have index?
@@ -210,13 +213,15 @@ public class SlackEventService {
      *
      */
 
+    //If EXPLAIN result 'type' is not in this set, warn user to consult DBA
     Set<String> allowedTypes = new HashSet<>(Arrays.asList("eq_ref",
                                       "fulltext",
                                       "index_merge",
                                       "index_sub",
                                       "index",
                                       "range"));
-    Set<String> allowedExtras = new HashSet<>(Arrays.asList("Distinct",
+    //If EXPLAIN result 'extras' contains verbiage in this list, warn user to consult DBA
+    Set<String> warnableExtras = new HashSet<>(Arrays.asList("Distinct",
                                                             "Full scan on NULL key",
                                                             "Impossible HAVING",
                                                             "Impossible WHERE noticed after reading const tables",
@@ -226,20 +231,21 @@ public class SlackEventService {
                                                             "No tables used",
                                                             "unique row not found",
                                                             "Using filesort"));
+    //Only warn user to consult DBA on lack of index usage if row count is over 100k
     for (ExplainResult r : explainQueryResults){
       if (r.getQueried_rows() > 100000){
         if (r.getQueried_key() == "NULL"){
-          return "Nay";
+          return "Recommend you consult with a friendly DBA.";
         }
       }
       if (!allowedTypes.contains(r.getType())){
-          return "Nay";
+          return "Recommend you consult with a friendly DBA.";
       }
-      if (allowedExtras.contains(r.getExtra())){
-          return "Nay";
+      if (warnableExtras.contains(r.getExtra())){
+          return "Recommend you consult with a friendly DBA.";
       }
     }
-    return "Yea";
+    return "No apparent conflicts. Thanks for visiting!";
   }
 
   /** This method will be called from the Async respond() above in order to post a message
@@ -270,16 +276,6 @@ public class SlackEventService {
    */
   public VerificationResponse verificationResponse(JsonNode challenge) {
     return new VerificationResponse(challenge);
-  }
-
-  public synchronized boolean addEvent(SlackWrapper event) {
-    //TODO: stub for slackEvent service method
-    return false;
-  }
-
-  public SlackWrapper getEventByEventID(String event_id) {
-    //TODO: stub for slackEvent service method
-    return null;
   }
 
   /** Only used for JUnit testing. The autowiring does not work with JUnit tests,

@@ -20,10 +20,20 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class Application {
 
+  /** The main SpringApplication drives the program and injects objects into the controller and service classes
+   * where needed. It also maintains all of the autowiring used throughout the application.
+   *
+   * TODO: stop relying on autowiring. It's bad...
+   *
+   * @param args
+   */
   public static void main(String[] args) {
     SpringApplication.run(Application.class, args);
   }
 
+  /** This Executor bean establishes settings for Asynchronous methods in the application.
+   * @return
+   */
   @Bean
   public Executor taskExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

@@ -38,7 +38,7 @@ public class AppService {
    *             bot OAUTH token
    */
   public void authorize(String code) throws IOException {
-    //Slack wants a POST, but can't accept JSON (will return JSON though)
+    //Slack wants a POST and can't accept JSON for the OAUTH process (will return JSON though)
       //build HttpEntity with headers/map
     //build a map with the vars to send back to Slack OAUTH
     //create resttemplate and responseentity objects
@@ -76,6 +76,8 @@ public class AppService {
 
     System.out.println("Auth Method: " + bot.get("bot_access_token").asText());
 
+    //Set the returned token in a Credentials object, which is maintained and accessed via
+    //    the CredentialsService bean
     currentCredentials.setCredentials(new Credentials(bot.get("bot_user_id").asText(),
                                                       bot.get("bot_access_token").asText()));
   }

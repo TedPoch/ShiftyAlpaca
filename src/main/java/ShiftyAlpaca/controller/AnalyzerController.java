@@ -21,8 +21,12 @@ public class AnalyzerController {
 
      case: event_callback is the basic slackEvent that should contain queries for analysis
      case: url_verification is the test run by the Slack API to confirm the application's URL
+              during the initial Slack app setup on your account page
+     * @param event - The framework injects the JSON string received from Slack here
+     * @return - respond to Slack with either HTTP200 for user queries, or the challenge token if Slack is
+     *            verifying the URL of this application
+     * @throws Exception - TODO: handle this exception from the Service.class better
      */
-    //@PostMapping(value="/analyzer", produces="application/json", consumes="application/json")
     @PostMapping(value = "/analyzer", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity returnResult(@RequestBody JsonNode event) throws Exception {
 
