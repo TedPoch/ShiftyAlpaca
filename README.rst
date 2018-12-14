@@ -1,5 +1,5 @@
 =========
-SQL Analyser
+SQL analyser
 =========
 Functional Documentation (WIP)
 ------------------------
@@ -22,6 +22,6 @@ Functional Requirements
    
      * user id
      * team id
-     * query date, string, results
+     * query date, query string, EXPLAIN results
      
    * Admin can query for history of user queries
