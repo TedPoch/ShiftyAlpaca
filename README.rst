@@ -1,5 +1,5 @@
 =========
-SQL Analyser
+SQL analyser
 =========
 Functional Documentation (WIP)
 ------------------------
